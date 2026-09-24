@@ -1,0 +1,28 @@
+# Allowlist. Everything is ignored unless explicitly named, because service
+# directories hold data, caches and tokens in no consistent layout and a
+# denylist will always miss one.
+*
+!*/
+
+!docker-compose.yml
+!docker-compose.yaml
+!compose.yml
+!compose.yaml
+!README*
+!.gitignore
+!.gitattributes
+!.sops.yaml
+
+# Encrypted config is the committed artefact. Plaintext is a build product.
+!*.enc.env
+!*.enc.json
+!*.enc.yaml
+!*.example
+!*.template
+
+.env
+*.env
+!*.enc.env
+secrets/
+*.key
+*.pem

@@ -1,0 +1,60 @@
+# Immich machine learning, on its own.
+#
+# The Immich server lives on the Pi, which has 4 GB and also serves house DNS,
+# so its stack runs with no machine learning at all and smart search and face
+# detection are off. This is that missing half, moved somewhere with the
+# compute for it. See immich-ml/README.md for the one setting that joins them.
+#
+# The model cache is the only state, and it is a download rather than data.
+# Losing it costs the time to fetch the models again.
+#
+# Keep the tag in step with the server's. A version skew between server and
+# machine learning is the failure that looks like a broken model rather than
+# like a mismatch.
+name: immich_remote_ml
+
+services:
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-v3}
+    container_name: immich_machine_learning
+    restart: unless-stopped
+
+    ports:
+      # The server on the Pi posts image previews here and reads the results
+      # back. Plain HTTP with no authentication of its own, which is why it
+      # stays on trusted and is never forwarded. Anything that can reach this
+      # port can ask the box to run inference.
+      - "3003:3003"
+
+    volumes:
+      # The models, a few hundred MB to several GB depending on which are
+      # selected in the server's admin UI. A named volume rather than a bind:
+      # nothing here is worth reading from outside the container.
+      - model-cache:/cache
+
+    environment:
+      TZ: Europe/London
+
+      # Workers and threads are left at their defaults. The defaults scale to
+      # the cores the container can see, which is what the guest's 4 are for.
+      # Setting MACHINE_LEARNING_WORKERS above 1 multiplies memory by the
+      # number of workers, because each one loads its own copy of the model.
+
+    # No photo library, and no route to one. The server sends the preview it
+    # wants classified in the request body, so this container never touches
+    # the library on the Pi and needs no share, no mount and no credentials.
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+    healthcheck:
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:3003/ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  model-cache:
