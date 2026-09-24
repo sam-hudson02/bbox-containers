@@ -1,0 +1,33 @@
+# The second Caddy.
+#
+# The Pi's Caddy is the house front door: vault, dns, db, photos, and the rest.
+# This one fronts the Aqua Narrowboats services and nothing else, so that
+# outside people can be given a Tailscale grant to `192.168.1.152:443` and
+# reach exactly those, with no path to anything personal.
+#
+# The Tailscale policy filters by port, not by hostname. One Caddy serving both
+# sets would mean a grant for the CMS also reached Vaultwarden. Two Caddies on
+# two addresses is what makes the split enforceable rather than a convention.
+#
+# Host networking, so it owns :80 and :443 on this guest. Everything it proxies
+# on this box binds 127.0.0.1 and is reachable only through here.
+services:
+  caddy:
+    build: .
+    image: caddy-cloudflare:local
+    container_name: caddy
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      # Needs BOTH Zone:Read and Zone:DNS:Edit on the one zone. DNS-01 writes
+      # TXT records, and the plugin resolves the zone ID before it can.
+      # A separate token from the Pi's, so revoking one does not take both
+      # front doors down at once.
+      CF_API_TOKEN: ${CF_API_TOKEN:?}
+      DOMAIN: ${DOMAIN:?}
+      ACME_EMAIL: ${ACME_EMAIL:?}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data:/data
+      - ./config:/config
+    mem_limit: 256m

@@ -1,0 +1,99 @@
+# Caddy on bbox. Aqua Narrowboats only.
+#
+# The Pi's Caddy serves the personal services. This one exists so that people
+# outside the household can be given a Tailscale grant to this address on 443
+# and reach these three names, and nothing else on the network.
+#
+# Add a route: edit this file, redeploy caddy, add the AdGuard rewrite pointing
+# the name at 192.168.1.152. Same checklist as the Pi's: add-a-service.
+
+{
+	email {$ACME_EMAIL}
+}
+
+# DNS-01, because none of these names is reachable from the internet and
+# HTTP-01 could never validate. Proves control of the zone instead.
+(internal) {
+	tls {
+		dns cloudflare {$CF_API_TOKEN}
+	}
+}
+
+# Basic auth for the two editing surfaces. Tailscale membership is the real
+# boundary; this is the second lock, and it is also how the publish page learns
+# who is publishing.
+#
+# Generate a line with:  docker exec caddy caddy hash-password
+# One user per editor, so the commit history names a person.
+(aqua-editors) {
+	basic_auth {
+		sam $2a$14$REPLACE_WITH_A_REAL_HASH
+	}
+}
+
+# --- Keystatic. Where staff edit the site. -----------------------------------
+aqua-cms.{$DOMAIN} {
+	import internal
+	import aqua-editors
+
+	# Photo uploads go through here.
+	request_body {
+		max_size 32MB
+	}
+
+	header {
+		X-Robots-Tag "noindex, nofollow"
+		Cache-Control "no-store"
+	}
+
+	reverse_proxy 127.0.0.1:4322 {
+		# The admin UI holds a save open while it writes files and images.
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
+
+# --- Preview, and the Publish page. ------------------------------------------
+aqua-preview.{$DOMAIN} {
+	import internal
+	import aqua-editors
+
+	header {
+		X-Robots-Tag "noindex, nofollow"
+		Cache-Control "no-store"
+	}
+
+	reverse_proxy 127.0.0.1:4323 {
+		# Who pressed Publish. The publish page puts this on the commit, so
+		# the history says who changed what.
+		header_up X-Editor-User {http.auth.user.id}
+
+		# Publishing pushes to GitHub, which can take a moment.
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
+
+# --- Staging. The live site, on pbox in the DMZ. -----------------------------
+#
+# Trusted may open connections into the DMZ; the DMZ can never open one back.
+# Staging has no inbound path of its own: it polls GitHub rather than taking a
+# webhook, so nothing is forwarded to it and this is the only way in.
+aqua-staging.{$DOMAIN} {
+	import internal
+	import aqua-editors
+
+	# Staging serves the same pages as the live site. Without this, search
+	# engines would index a second copy and the two would compete. It is not
+	# publicly reachable, but the header costs nothing and survives a mistake.
+	header X-Robots-Tag "noindex, nofollow"
+
+	# The careers form accepts a CV; the app caps the file itself at 8MB.
+	request_body {
+		max_size 12MB
+	}
+
+	reverse_proxy 192.168.3.10:8080
+}

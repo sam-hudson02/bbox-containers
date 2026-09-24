@@ -19,6 +19,11 @@
 !*.enc.yaml
 !*.example
 !*.template
+# caddy's config and its custom build. Named, not `!*`: the allowlist exists so
+# that a future config file holding credentials is not committed by a rule
+# nobody revisited.
+!Caddyfile
+!Dockerfile
 
 .env
 *.env

@@ -1,0 +1,99 @@
+# Aqua Narrowboats CMS.
+#
+# Keystatic, the thing that rebuilds preview when someone saves, and preview
+# itself with its Publish page. Staff reach it at aqua-cms.{$DOMAIN} and
+# aqua-preview.{$DOMAIN} through this guest's Caddy, over Tailscale.
+#
+# Nothing here serves the public site. The only way anything reaches the public
+# is by pressing Publish, which commits and pushes to GitHub; staging and
+# production poll that branch and rebuild themselves.
+#
+# Unlike every other stack here, these three bind-mount a git checkout that
+# they also build from. Keystatic writes content and photos into it, the
+# publisher runs `astro build` over it, and Publish commits and pushes it. That
+# is why AQUA_DIR is a checkout rather than a data directory, and why it needs
+# `npm ci` run in it before any of this starts.
+#
+#   git clone git@github.com:sam-hudson02/aqua.git ~/aqua && cd ~/aqua
+#   git checkout main && npm ci && npm run build
+#
+# The checkout needs a deploy key with WRITE access, because publishing pushes.
+name: aqua-cms
+
+services:
+  # Keystatic. Reading and writing files means rendering on demand, so this is
+  # the one part of the site that is not static.
+  editor:
+    image: aqua-editor:local
+    build:
+      context: ${AQUA_DIR:?path to the aqua checkout}
+      dockerfile: Dockerfile
+      target: editor
+    container_name: aqua-editor
+    restart: unless-stopped
+    # The checkout's owner. As root these write root-owned git objects into the
+    # bind mount and that user can no longer commit.
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment:
+      EDITOR: "true"
+      # 0.0.0.0 inside the container; the published port is what binds to
+      # loopback on the guest.
+      HOST: 0.0.0.0
+      PORT: 4322
+      HOME: /home/node
+    volumes:
+      - ${AQUA_DIR:?}:/app
+    ports:
+      # Loopback only. Caddy on this guest is the one way in, and Keystatic's
+      # local mode has no authentication of its own, so reaching this port is
+      # enough to rewrite the site.
+      - "127.0.0.1:4322:4322"
+    mem_limit: 2g
+
+  # Rebuilds preview a few seconds after the last save. Polls rather than
+  # watching: Node's recursive fs.watch stops delivering events on Linux
+  # without erroring, which leaves preview silently stale.
+  publisher:
+    image: aqua-editor:local
+    container_name: aqua-publisher
+    restart: unless-stopped
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    depends_on:
+      - editor
+    environment:
+      # The static build, not the editor bundle.
+      EDITOR: "false"
+      HOME: /home/node
+      PUBLISH_DEBOUNCE_MS: "${PUBLISH_DEBOUNCE_MS:-20000}"
+    volumes:
+      - ${AQUA_DIR:?}:/app
+    command: ["node", "scripts/watch-publish.ts"]
+    # Astro re-encodes image variants during a build and sharp is not frugal.
+    mem_limit: 3g
+
+  # The preview site, and the Publish page at /publish.
+  preview:
+    image: aqua-editor:local
+    container_name: aqua-preview
+    restart: unless-stopped
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    depends_on:
+      - publisher
+    environment:
+      EDITOR: "false"
+      HOST: 0.0.0.0
+      PORT: 4323
+      STATIC_DIR: dist
+      HOME: /home/node
+      PUBLISH_BRANCH: "${PUBLISH_BRANCH:-main}"
+      PUBLISH_REMOTE: "${PUBLISH_REMOTE:-origin}"
+      # Where "open the live site" points. Staging until the domain moves.
+      LIVE_URL: "${LIVE_URL:?}"
+    volumes:
+      - ${AQUA_DIR:?}:/app
+      # Publishing pushes to GitHub. Read-only: the containers use the key,
+      # they do not manage it.
+      - ${SSH_DIR:-/home/sam/.ssh}:/home/node/.ssh:ro
+    ports:
+      - "127.0.0.1:4323:4323"
+    mem_limit: 512m

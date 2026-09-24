@@ -11,9 +11,14 @@ deploy time and never committed.
 
 | Stack | Port | Notes |
 |---|---|---|
+| `caddy` | 80, 443 | The second TLS front door. Aqua Narrowboats names only |
 | `immich-ml` | 3003 | Immich's machine learning half. The server is on the Pi |
 | `pricebuddy` | 8080 | Price tracker for the shopping list in the notes vault |
 | `searxng` | 8081 | Metasearch front end |
+| `aqua-cms` | 4322, 4323 | Keystatic and preview for the Aqua Narrowboats site |
+
+Deploy order matters: `caddy` goes before `aqua-cms` in `host_vars/bbox.yml`,
+since it holds the route.
 
 ## The guest
 
@@ -46,9 +51,27 @@ is a real difference from the DMZ guests, which can reach none of them.
 Nothing here is exposed to the internet and nothing here should be. Port 3003
 has no authentication of its own; PriceBuddy on 8080 has its own login.
 
+### The second Caddy
+
+This guest has its own Caddy, separate from the Pi's. The Tailscale policy
+filters by port and not by hostname, so a grant letting an outside editor reach
+a service on the Pi's `:443` would reach every other name it serves:
+Vaultwarden, AdGuard, CloudBeaver, Proxmox, DSM, Home Assistant.
+
+Two Caddies on two addresses makes that split enforceable. Aqua Narrowboats
+editors get a tailnet grant to `192.168.1.152:443` and reach the three
+`aqua-*` names and nothing else. Adding an editor never touches the Pi.
+
+It also fronts `aqua-staging` on `pbox`, the same way the Pi's Caddy fronts
+Crafty and Jellyfin: trusted may open connections into the DMZ, and the DMZ can
+never open one back.
+
 ## What belongs here
 
 Trusted-side services that want more compute than the Pi has. The Pi stays the
-front door: it holds the TLS certificate, the resolver and the data. This box
-takes the work that needs cores and memory, and is built so that losing it
-costs a rebuild rather than a restore.
+front door for everything personal: it holds the resolver, the vault and the
+photo library. This box takes the work that needs cores and memory, and is
+built so that losing it costs a rebuild rather than a restore.
+
+It is now also the front door for work that other people use, which is a
+second reason for a service to live here rather than on the Pi.
