@@ -26,6 +26,11 @@ services:
       CF_API_TOKEN: ${CF_API_TOKEN:?}
       DOMAIN: ${DOMAIN:?}
       ACME_EMAIL: ${ACME_EMAIL:?}
+      # The salt and digest of each editor's bcrypt hash, without the $2a$14$
+      # prefix -- that stays literal in the Caddyfile. Compose interpolates $
+      # in a .env value, so a whole hash would arrive here truncated to
+      # "$2a$14" and every login would fail with nothing to show why.
+      AQUA_EDITOR_SAM_HASH: ${AQUA_EDITOR_SAM_HASH:?}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./data:/data

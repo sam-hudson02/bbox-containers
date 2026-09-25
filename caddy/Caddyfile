@@ -16,6 +16,14 @@
 (internal) {
 	tls {
 		dns cloudflare {$CF_API_TOKEN}
+		# Not AdGuard. Before writing the TXT record, CertMagic looks up the SOA
+		# for the name to work out which zone it belongs to, walking up a label
+		# at a time. AdGuard answers for these names with a rewrite and no SOA,
+		# so that walk runs past samhudson.dev to dev., and Cloudflare is then
+		# asked for a zone called "dev" it does not have:
+		#   expected 1 zone, got 0 for dev.
+		# The Pi's Caddy has the same line for the same reason.
+		resolvers 1.1.1.1
 	}
 }
 
@@ -23,11 +31,21 @@
 # boundary; this is the second lock, and it is also how the publish page learns
 # who is publishing.
 #
-# Generate a line with:  docker exec caddy caddy hash-password
+# Generate a line with:  docker exec -it caddy caddy hash-password
 # One user per editor, so the commit history names a person.
+#
+# Only the salt and digest come from the environment; the $2a$14$ prefix stays
+# literal here. Docker compose interpolates $ in .env values, so a whole hash
+# put in a variable arrives as "$2a$14" -- silently truncated, Caddy holds a
+# malformed hash, every login fails, and nothing in any log says why. The
+# bcrypt blob is base64 over ./A-Za-z0-9 and has no $ in it, so it survives.
+#
+# That prefix assumes bcrypt at cost 14, which is what hash-password gives by
+# default. Pass --bcrypt-cost or --algorithm and this line needs changing too,
+# or authentication fails with a hash that looks perfectly well formed.
 (aqua-editors) {
 	basic_auth {
-		sam $2a$14$REPLACE_WITH_A_REAL_HASH
+		sam $2a$14${$AQUA_EDITOR_SAM_HASH}
 	}
 }
 
