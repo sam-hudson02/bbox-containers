@@ -108,9 +108,10 @@ aqua-staging.{$DOMAIN} {
 	# publicly reachable, but the header costs nothing and survives a mistake.
 	header X-Robots-Tag "noindex, nofollow"
 
-	# The careers form accepts a CV; the app caps the file itself at 8MB.
+	# The forms post text only; the app caps bodies at 256kb and accepts no
+	# file uploads. Anything bigger is refused here before it crosses to pbox.
 	request_body {
-		max_size 12MB
+		max_size 1MB
 	}
 
 	reverse_proxy 192.168.3.10:8080

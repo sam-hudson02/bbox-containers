@@ -55,9 +55,9 @@ and the same DNS-01 setup. The ones that bite on this box specifically:
 - The staging route crosses into the DMZ. That works because trusted may open
   connections into the DMZ, and it is one-way: nothing on `pbox` can start a
   connection back.
-- `request_body max_size` is needed on both editing routes. Keystatic uploads
-  photos and the careers form takes a CV; without it both fail as a generic
-  upload error.
+- `aqua-cms` needs `request_body max_size 32MB` because Keystatic uploads
+  photos. Without it an upload fails as a generic error. `aqua-staging` caps
+  bodies at 1MB: its forms post text only and accept no files.
 
 ## Checks
 
