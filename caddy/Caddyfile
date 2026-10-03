@@ -1,11 +1,14 @@
 # Caddy on bbox. Aqua Narrowboats only.
 #
 # The Pi's Caddy serves the personal services. This one exists so that people
-# outside the household can be given a Tailscale grant to this address on 443
-# and reach these three names, and nothing else on the network.
+# outside the household can have bbox shared into their own tailnet, with a
+# grant to its Tailscale address on 443, and reach these three names and
+# nothing else on the network.
 #
 # Add a route: edit this file, redeploy caddy, add the AdGuard rewrite pointing
-# the name at 192.168.1.152. Same checklist as the Pi's: add-a-service.
+# the name at 192.168.1.152, and a Cloudflare A record (DNS only) pointing it
+# at bbox's Tailscale 100.x address for editors off the LAN. Same checklist as
+# the Pi's otherwise: add-a-service.
 
 {
 	email {$ACME_EMAIL}
@@ -46,6 +49,7 @@
 (aqua-editors) {
 	basic_auth {
 		sam $2a$14${$AQUA_EDITOR_SAM_HASH}
+		jane $2a$14${$AQUA_EDITOR_JANE_HASH}
 	}
 }
 

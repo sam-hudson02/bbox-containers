@@ -25,10 +25,19 @@ filters by port, not by hostname, so a grant that let an Aqua editor reach the
 CMS on the Pi would also reach Vaultwarden, AdGuard, CloudBeaver, Proxmox, DSM
 and Home Assistant.
 
-Two Caddies on two addresses makes the split enforceable. Aqua editors get a
-grant to `192.168.1.152:443` and can reach the three names above and nothing
-else. Adding an editor is a tailnet invite plus a `basic_auth` line; it never
-touches the Pi.
+Two Caddies on two machines makes the split enforceable. bbox is its own
+Tailscale node, shared into each editor's own tailnet, and the policy allows
+its Tailscale address on `tcp:443` only. Editors reach the three names above
+and nothing else; a shared node carries no subnet routes, so the LAN is not
+visible to them. Adding an editor is a share invite, their login in the grant,
+and a `basic_auth` line. It never touches the Pi.
+
+## DNS
+
+Each name has two answers. Inside the house, an AdGuard rewrite to
+`192.168.1.152`. Everywhere else, a public Cloudflare A record to bbox's
+Tailscale `100.x` address, DNS only, because sharees do not get this tailnet's
+split DNS. A new route needs both.
 
 ## Basic auth
 

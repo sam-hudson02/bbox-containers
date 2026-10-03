@@ -58,9 +58,22 @@ filters by port and not by hostname, so a grant letting an outside editor reach
 a service on the Pi's `:443` would reach every other name it serves:
 Vaultwarden, AdGuard, CloudBeaver, Proxmox, DSM, Home Assistant.
 
-Two Caddies on two addresses makes that split enforceable. Aqua Narrowboats
-editors get a tailnet grant to `192.168.1.152:443` and reach the three
-`aqua-*` names and nothing else. Adding an editor never touches the Pi.
+Two Caddies on two machines makes that split enforceable. This guest runs
+Tailscale as a node of its own and is shared into each Aqua Narrowboats
+editor's own tailnet. The policy allows them bbox's Tailscale address on
+`tcp:443`, so they reach the three `aqua-*` names and nothing else. A shared
+node carries no subnet routes, so they never see the LAN at all. Adding an
+editor never touches the Pi.
+
+Sharees do not get the tailnet's split DNS, so the three names have public
+Cloudflare A records pointing at bbox's `100.x` address, DNS only. That
+address is useless to anyone who cannot already see bbox on a tailnet. Inside
+the house the AdGuard rewrites still answer `192.168.1.152`.
+
+There is no `tailscale serve` here. Caddy already terminates TLS with real
+certificates and routes by hostname; serve would put a single `ts.net` name in
+front of it and break that. The node setup, including passing `/dev/net/tun`
+into this container, is in the home-net notes, `tailscale.md`.
 
 It also fronts `aqua-staging` on `pbox`, the same way the Pi's Caddy fronts
 Crafty and Jellyfin: trusted may open connections into the DMZ, and the DMZ can
