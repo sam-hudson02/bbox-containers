@@ -33,6 +33,7 @@ services:
       # "$2a$14" and every login would fail with nothing to show why.
       AQUA_EDITOR_SAM_HASH: ${AQUA_EDITOR_SAM_HASH:?}
       AQUA_EDITOR_JANE_HASH: ${AQUA_EDITOR_JANE_HASH:?}
+      AQUA_EDITOR_ADMIN_HASH: ${AQUA_EDITOR_ADMIN_HASH:?}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./data:/data

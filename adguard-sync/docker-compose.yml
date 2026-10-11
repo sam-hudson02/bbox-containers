@@ -1,0 +1,42 @@
+# adguardhome-sync: copies AdGuard config from the Pi (origin) to the AdGuard
+# on this guest (replica), over each instance's HTTP API. No restarts, no file
+# copying -- AdGuard rewrites AdGuardHome.yaml itself, so overwriting the file
+# under a running instance does not stick.
+#
+#   https://github.com/bakito/adguardhome-sync
+#
+# Runs here rather than on the Pi so a Pi outage only fails the sync; the
+# replica keeps the last config it was given and carries on answering.
+#
+# Bridge networking and no published port. The sync's own web UI defaults to
+# 8080, which PriceBuddy already has, and nothing needs it: API_PORT=0 turns it
+# off. Both AdGuards listen on host networking, so the LAN addresses below are
+# reachable from the bridge.
+name: adguard-sync
+
+services:
+  adguard-sync:
+    image: ghcr.io/bakito/adguardhome-sync:v0.9.4
+    container_name: adguard-sync
+    restart: unless-stopped
+    command: run
+    environment:
+      TZ: Europe/London
+      ORIGIN_URL: http://192.168.1.151:3000
+      ORIGIN_USERNAME: ${ADGUARD_USERNAME:?}
+      ORIGIN_PASSWORD: ${ADGUARD_PASSWORD:?}
+      REPLICA1_URL: http://192.168.1.152:3000
+      REPLICA1_USERNAME: ${ADGUARD_USERNAME:?}
+      REPLICA1_PASSWORD: ${ADGUARD_PASSWORD:?}
+      # Every ten minutes, and once at start so a redeploy syncs straight away.
+      CRON: "*/10 * * * *"
+      RUN_ON_START: "true"
+      # One feature failing (a filter list URL timing out, say) should not stop
+      # the rewrites going across.
+      CONTINUE_ON_ERROR: "true"
+      API_PORT: "0"
+      # AdGuard's DHCP server is unused; the UDM does DHCP. Leave it alone so a
+      # sync can never turn it on here.
+      FEATURES_DHCP_SERVER_CONFIG: "false"
+      FEATURES_DHCP_STATIC_LEASES: "false"
+    mem_limit: 128m

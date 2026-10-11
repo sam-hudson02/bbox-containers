@@ -1,0 +1,31 @@
+# AdGuard Home, the secondary resolver. The primary is on the Pi, in
+# ~/code/pi-containers/adguard; this is the same stack so that a Pi outage does
+# not take DNS for trusted with it.
+#
+# Config is NOT edited here. adguard-sync copies the Pi's config onto this
+# instance every few minutes, so a change made in this UI is silently undone.
+# Make every change on the Pi.
+#
+# Host networking, for the same two reasons as the Pi: it needs :53 on the LAN
+# address, and DNS wants the real client IP for per-client rules and the query
+# log.
+#
+# Prerequisite, handled by the adguard role in ~/code/ansible: systemd-resolved
+# binds 127.0.0.53:53 on Ubuntu and must have its stub listener turned off
+# before this container can start.
+#
+# The web UI must NOT sit on :80. This guest's Caddy holds 80 and 443. Set the
+# admin interface to 3000 in the setup wizard and leave it there.
+#
+# Pinned, unlike the Pi's :latest. adguard-sync drives both instances through
+# the API, so the two should be on the same release. Bump this to match the Pi:
+#   ssh sam@192.168.1.151 'docker exec adguardhome /opt/adguardhome/AdGuardHome --version'
+services:
+  adguardhome:
+    image: adguard/adguardhome:v0.107.79
+    container_name: adguardhome
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./work:/opt/adguardhome/work
+      - ./conf:/opt/adguardhome/conf

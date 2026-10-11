@@ -50,6 +50,7 @@
 	basic_auth {
 		sam $2a$14${$AQUA_EDITOR_SAM_HASH}
 		jane $2a$14${$AQUA_EDITOR_JANE_HASH}
+		admin $2a$14${$AQUA_EDITOR_ADMIN_HASH}
 	}
 }
 

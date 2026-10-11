@@ -16,6 +16,8 @@ deploy time and never committed.
 | `pricebuddy` | 8080 | Price tracker for the shopping list in the notes vault |
 | `searxng` | 8081 | Metasearch front end |
 | `aqua-cms` | 4322, 4323 | Keystatic and preview for the Aqua Narrowboats site |
+| `adguard` | 53, 3000 | Secondary DNS. Config is the Pi's, copied by `adguard-sync` |
+| `adguard-sync` | none | Copies AdGuard config Pi → bbox every 10 minutes |
 
 Deploy order matters: `caddy` goes before `aqua-cms` in `host_vars/bbox.yml`,
 since it holds the route.
